@@ -1,13 +1,13 @@
-import streamlit as st
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
-@st.cache_resource(show_spinner="Loading embeddings model...")
 def load_embeddings():
-    """
-    Load and cache HuggingFace sentence transformer embeddings.
-    """
     try:
-        return HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            model_kwargs={"device": "cpu"}  # ✅ force CPU
+        )
+        return embeddings
     except Exception as e:
-        st.error(f"⚠️ Failed to load embeddings: {e}")
+        print(f"Failed to load embeddings: {e}")
         return None
+
