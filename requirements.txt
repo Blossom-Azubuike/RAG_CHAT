@@ -1,40 +1,25 @@
-# Core LangChain and Groq
 langchain
 langchain-community
 langchain-groq
 langchain-openai
 langchain-text-splitters
-
-# Groq LLM
 groq
-
-# OpenAI API
 openai
 tiktoken
-
-# Embeddings
 sentence-transformers
 transformers
 huggingface-hub
-
-# PDF handling
 pypdf
 PyPDF2
-
-# YouTube transcript
 pytube
 youtube-transcript-api
-
-# Vector stores
 faiss-cpu
-
-# Streamlit
 streamlit
-
-# Utilities
 python-dotenv
 PyYAML
 requests
 pandas
 numpy
+yt-dlp
+
 
