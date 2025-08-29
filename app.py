@@ -1,7 +1,9 @@
+import os
 import streamlit as st
 from dotenv import load_dotenv
 from PyPDF2 import PdfReader
 from langchain_community.vectorstores import FAISS
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
 from helpers.chain import create_rag_chain
 from helpers.chunker import chunk_data
@@ -14,6 +16,12 @@ from langchain_core.prompts import ChatPromptTemplate
 # Load environment variables
 load_dotenv()
 
+# Get Groq API key safely
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    st.error("❌ GROQ_API_KEY is missing. Please set it in your .env file or Streamlit secrets.")
+    st.stop()
+
 st.set_page_config(page_title="Zubi- Chat", layout="wide")
 st.title("Zubi - Let's Chat 💬")
 
@@ -25,23 +33,23 @@ if "rag_chain" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
+# Load embeddings once
+embeddings = load_embeddings()
+if embeddings is None:
+    st.error("⚠️ Failed to load embeddings. Please try again later.")
+    st.stop()
+
 # --- PDF Upload ---
 pdf_file = st.file_uploader("Upload PDF", type=["pdf"])
 if pdf_file:
     try:
         text = load_pdf(pdf_file)
         chunks = chunk_data([Document(page_content=text)])
-        embeddings = load_embeddings()
-
-        if embeddings is None:
-            st.error("⚠️ Failed to load embeddings. Please try again later.")
-        else:
-            vector_store = FAISS.from_documents(chunks, embeddings)
-            st.session_state.retriever = vector_store.as_retriever()
-            st.session_state.rag_chain = create_rag_chain(st.session_state.retriever)
-            st.session_state.chat_history = []
-            st.success("PDF processed successfully!")
-
+        vector_store = FAISS.from_documents(chunks, embeddings)
+        st.session_state.retriever = vector_store.as_retriever()
+        st.session_state.rag_chain = create_rag_chain(st.session_state.retriever)
+        st.session_state.chat_history = []
+        st.success("✅ PDF processed successfully!")
     except Exception as e:
         st.error(f"Error processing PDF: {e}")
 
@@ -51,24 +59,18 @@ if youtube_url:
     try:
         yt_docs = load_from_youtube(youtube_url)
         chunks = chunk_data(yt_docs)
-        embeddings = load_embeddings()
-
-        if embeddings is None:
-            st.error("⚠️ Failed to load embeddings. Please try again later.")
-        else:
-            vector_store = FAISS.from_documents(chunks, embeddings)
-            st.session_state.retriever = vector_store.as_retriever()
-            st.session_state.rag_chain = create_rag_chain(st.session_state.retriever)
-            st.session_state.chat_history = []
-            st.success("YouTube transcript processed successfully!")
-
+        vector_store = FAISS.from_documents(chunks, embeddings)
+        st.session_state.retriever = vector_store.as_retriever()
+        st.session_state.rag_chain = create_rag_chain(st.session_state.retriever)
+        st.session_state.chat_history = []
+        st.success("✅ YouTube transcript processed successfully!")
     except Exception as e:
         st.error(f"Error: {e}")
 
 # --- Manual Memory Reset ---
 if st.button("Reset Memory"):
     st.session_state.chat_history = []
-    st.success("Memory cleared!")
+    st.success("🧹 Memory cleared!")
 
 # --- Q&A Section ---
 question = st.text_input("Ask a question:")
@@ -78,7 +80,11 @@ if question:
             answer = st.session_state.rag_chain.invoke(question)
         else:
             # General chat if no PDF or YouTube
-            llm = ChatGroq(model_name="llama3-8b-8192", temperature=0.7)
+            llm = ChatGroq(
+                model_name="llama3-8b-8192",
+                temperature=0.7,
+                api_key=GROQ_API_KEY
+            )
             formatted_prompt = ChatPromptTemplate.from_messages([
                 ("system", "You are a helpful assistant."),
                 ("user", "{question}")
@@ -97,4 +103,6 @@ for chat in st.session_state.chat_history:
     st.markdown(f"**Bot:** {chat['answer']}")
     st.markdown("---")
 
+
 st.markdown("Developed by Azubuike Blossom (https://blossom-azubuike.github.io/Me/Project.html)")
+
