@@ -2,13 +2,14 @@ import streamlit as st
 from dotenv import load_dotenv
 from PyPDF2 import PdfReader
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
 from helpers.chain import create_rag_chain
 from helpers.chunker import chunk_data
 from helpers.pdfloader import load_pdf
 from helpers.youtubeloader import load_from_youtube
+from helpers.embeddings import load_embeddings
 from langchain_core.documents import Document
+from langchain_core.prompts import ChatPromptTemplate
 
 # Load environment variables
 load_dotenv()
@@ -30,12 +31,16 @@ if pdf_file:
     try:
         text = load_pdf(pdf_file)
         chunks = chunk_data([Document(page_content=text)])
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        vector_store = FAISS.from_documents(chunks, embeddings)
-        st.session_state.retriever = vector_store.as_retriever()
-        st.session_state.rag_chain = create_rag_chain(st.session_state.retriever)
-        st.session_state.chat_history = []
-        st.success("PDF processed successfully!")
+        embeddings = load_embeddings()
+
+        if embeddings is None:
+            st.error("⚠️ Failed to load embeddings. Please try again later.")
+        else:
+            vector_store = FAISS.from_documents(chunks, embeddings)
+            st.session_state.retriever = vector_store.as_retriever()
+            st.session_state.rag_chain = create_rag_chain(st.session_state.retriever)
+            st.session_state.chat_history = []
+            st.success("PDF processed successfully!")
 
     except Exception as e:
         st.error(f"Error processing PDF: {e}")
@@ -46,12 +51,17 @@ if youtube_url:
     try:
         yt_docs = load_from_youtube(youtube_url)
         chunks = chunk_data(yt_docs)
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        vector_store = FAISS.from_documents(chunks, embeddings)
-        st.session_state.retriever = vector_store.as_retriever()
-        st.session_state.rag_chain = create_rag_chain(st.session_state.retriever)
-        st.session_state.chat_history = []
-        st.success("YouTube transcript processed successfully!")
+        embeddings = load_embeddings()
+
+        if embeddings is None:
+            st.error("⚠️ Failed to load embeddings. Please try again later.")
+        else:
+            vector_store = FAISS.from_documents(chunks, embeddings)
+            st.session_state.retriever = vector_store.as_retriever()
+            st.session_state.rag_chain = create_rag_chain(st.session_state.retriever)
+            st.session_state.chat_history = []
+            st.success("YouTube transcript processed successfully!")
+
     except Exception as e:
         st.error(f"Error: {e}")
 
@@ -69,7 +79,6 @@ if question:
         else:
             # General chat if no PDF or YouTube
             llm = ChatGroq(model_name="llama3-8b-8192", temperature=0.7)
-            from langchain_core.prompts import ChatPromptTemplate
             formatted_prompt = ChatPromptTemplate.from_messages([
                 ("system", "You are a helpful assistant."),
                 ("user", "{question}")
